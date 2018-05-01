@@ -305,7 +305,12 @@ class Multiplayer: UIViewController ,MCBrowserViewControllerDelegate, MCSessionD
         clearPlayerPicks()
     }
     
-    
+    override func viewDidDisappear(_ animated: Bool) {
+        score = 0
+        possibleScore = 0
+        gameTimer.invalidate()
+        motionManager.stopDeviceMotionUpdates()
+    }
     
     @IBAction func answerButtonTouched(_ sender: UIButton) {
         
@@ -695,6 +700,7 @@ class Multiplayer: UIViewController ,MCBrowserViewControllerDelegate, MCSessionD
     
     func endGame()
     {
+        motionManager.stopDeviceMotionUpdates()
         gameEnded = true
         restartButton.isHidden = false
         print("No more questions!")
