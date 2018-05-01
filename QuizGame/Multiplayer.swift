@@ -113,7 +113,12 @@ class Multiplayer: UIViewController ,MCBrowserViewControllerDelegate, MCSessionD
     @IBOutlet weak var restartButton: UIButton!
     
     //-------------------------------------
-
+    override func viewDidAppear(_ animated: Bool) {
+        player1Label.sizeToFit()
+        player2Label.sizeToFit()
+        player3Label.sizeToFit()
+        player4Label.sizeToFit()
+    }
     override func viewDidLoad() {
         
         super.viewDidLoad()

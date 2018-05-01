@@ -425,6 +425,7 @@ class SinglePlayer: UIViewController {
     {
         gameEnded = true
         restartButton.isHidden = false
+        motionManager.stopDeviceMotionUpdates()
         print("No more questions!")
         //timerNotificationLabel.isHidden = true
         
@@ -682,6 +683,9 @@ class SinglePlayer: UIViewController {
         timerNotificationLabel.isHidden = false
         
         enableButtons()
+        self.motionManager.deviceMotionUpdateInterval = 1/60
+        self.motionManager.startDeviceMotionUpdates(using: .xArbitraryZVertical)
+        actionTimer = Timer.scheduledTimer(timeInterval: 0.02, target: self, selector: #selector(updateMotion), userInfo: nil,repeats: true)
     }
     
     func testPrintArray()
