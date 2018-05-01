@@ -149,6 +149,11 @@ class Multiplayer: UIViewController ,MCBrowserViewControllerDelegate, MCSessionD
         //self.peerID = MCPeerID(displayName: UIDevice.current.name)
         //self.session = MCSession(peer: peerID)
         
+        self.player1.image = UIImage(named: "player1")
+        self.player2.image = UIImage(named: "player2")
+        self.player3.image = UIImage(named: "player3")
+        self.player4.image = UIImage(named: "player4")
+        
         //self.session = MCSession(peer: peerID, securityIdentity: nil, encryptionPreference: MCEncryptionPreference.none)
         
         self.browser = MCBrowserViewController(serviceType: "chat", session: players[0].playerSession)
@@ -182,6 +187,8 @@ class Multiplayer: UIViewController ,MCBrowserViewControllerDelegate, MCSessionD
         
         resetClicks()
         
+        updateGlobalTimer()
+        
         setButtonBorders()
         clearButtonBorders()
         
@@ -198,6 +205,17 @@ class Multiplayer: UIViewController ,MCBrowserViewControllerDelegate, MCSessionD
     }
     
     
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        
+        self.motionManager.deviceMotionUpdateInterval = 1/60
+        self.motionManager.startDeviceMotionUpdates(using: .xArbitraryZVertical)
+        actionTimer = Timer.scheduledTimer(timeInterval: 0.02, target: self, selector: #selector(updateMotion), userInfo: nil,repeats: true)
+        seconds = 20
+    }
+    
+    
+    
     @objc func sendData()
     {
         
@@ -211,38 +229,21 @@ class Multiplayer: UIViewController ,MCBrowserViewControllerDelegate, MCSessionD
             //print("Error in sending data \(err)")
         }
         
-        /*
-        self.updatePlayers(number: img,id: peerID)
-        
-        
-        
-        if( player2.isHidden == false)
-        {
-            img = player2.tag
-        }
-        else if( player3.isHidden == false)
-        {
-            img = player3.tag
-        }
-        else if( player4.isHidden == false)
-        {
-            img = player4.tag
-        }
- */
-        
-        /*
-        let dataToSend =  NSKeyedArchiver.archivedData(withRootObject: img)
-        do{
-            try session.send(dataToSend, toPeers: session.connectedPeers, with: .unreliable)
-            
-        }
-        catch let err {
-            //print("Error in sending data \(err)")
-        }*/
+
     }
     
     
     @IBAction func restartButtonClicked(_ sender: Any) {
+        
+        let answer = "restart"
+        let dataToSend =  NSKeyedArchiver.archivedData(withRootObject: answer)
+        
+        do{
+            try players[0].playerSession.send(dataToSend, toPeers: players[0].playerSession.connectedPeers, with: .unreliable)
+        }
+        catch let err {
+            //print("Error in sending data \(err)")
+        }
         
         restartGame()
     }
@@ -300,24 +301,14 @@ class Multiplayer: UIViewController ,MCBrowserViewControllerDelegate, MCSessionD
         timerNotificationLabel.isHidden = false
         
         enableButtons()
+        
+        clearPlayerPicks()
     }
     
     
     
     @IBAction func answerButtonTouched(_ sender: UIButton) {
         
-        let answer = String(sender.tag)
-        player1Label.text = String(sender.tag)
-        let dataToSend =  NSKeyedArchiver.archivedData(withRootObject: answer)
-        
-        do{
-            try players[0].playerSession.send(dataToSend, toPeers: players[0].playerSession.connectedPeers, with: .unreliable)
-        }
-        catch let err {
-            //print("Error in sending data \(err)")
-        }
-        
-        updateAnswerLabels(answer: answer, id: players[0].playerPeerId)
         
         
         
@@ -359,39 +350,109 @@ class Multiplayer: UIViewController ,MCBrowserViewControllerDelegate, MCSessionD
         
         if buttonAclicks == 2 || buttonBclicks == 2 || buttonCclicks == 2 || buttonDclicks == 2
         {
+            let answer = String(sender.tag)
+            player1Label.text = String(sender.tag)
+            let dataToSend =  NSKeyedArchiver.archivedData(withRootObject: answer)
+            
+            do{
+                try players[0].playerSession.send(dataToSend, toPeers: players[0].playerSession.connectedPeers, with: .unreliable)
+            }
+            catch let err {
+                //print("Error in sending data \(err)")
+            }
+            
+            updateAnswerLabels(answer: answer, id: players[0].playerPeerId)
+            
             print("Submitted")
             
             checkAnswer(selectedButton: sender.tag)
             //Shows the answer
             Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(showCorrectAnswer), userInfo: nil,repeats: false)
             //Waits 3 secounds before laoding next answer
-            Timer.scheduledTimer(timeInterval: 3.1, target: self, selector: #selector(attemptToLoadNextQuestion), userInfo: nil,repeats: false)
+            if checkForAllSubmissions()
+            {
+                print("LOADING 4")
+                print("Loading next question")
+                Timer.scheduledTimer(timeInterval: 3.1, target: self, selector: #selector(attemptToLoadNextQuestion), userInfo: nil,repeats: false)
+            }
             
         }
         
     }
     
+    func checkForAllSubmissions() -> Bool
+    {
+        var tempCount: Int = 0
+        
+        if player1Label.text != ""
+        {
+            tempCount = tempCount + 1
+        }
+        
+        if player2Label.text != ""
+        {
+            tempCount = tempCount + 1
+        }
+        
+        if player3Label.text != ""
+        {
+            tempCount = tempCount + 1
+        }
+        
+        if player4Label.text != ""
+        {
+            tempCount = tempCount + 1
+        }
+        
+        if tempCount == players.count
+        {
+            return true
+        }
+        else
+        {
+            return false
+        }
+    }
+    
+    
     func updateAnswerLabels(answer: String, id: MCPeerID)
     {
+        
+        var temp = answer
+        
+        switch temp {
+        case "0":
+            temp = "A"
+        case "1":
+            temp = "B"
+        case "2":
+            temp = "C"
+        case "3":
+            temp = "D"
+        default:
+            print("Error")
+        }
+        
+        
         for x in players
         {
             if id == x.playerPeerId
             {
                 if x.playerImg == 0
                 {
-                    player1Label.text = answer
+                    player1Label.text = temp
                 }
                 else if x.playerImg == 1
                 {
-                    player2Label.text = answer
+                    player2Label.text = temp
                 }
                 else if x.playerImg == 2
                 {
-                    player3Label.text = answer
+                    player3Label.text = temp
                 }
                 else if x.playerImg == 3
                 {
-                    player4Label.text = answer
+                    player4Label.text = temp
                 }
             }
         }
@@ -422,31 +483,6 @@ class Multiplayer: UIViewController ,MCBrowserViewControllerDelegate, MCSessionD
             print("Error")
         }
         
-       /*
-      img = number
-        
-       
-        if player1.isHidden == false && player2.isHidden == true
-        {
-            player2.isHidden = false
-            playerCount += 1
-            img = player2.tag
-        }
-        else if player1.isHidden == false && player3.isHidden == true
-        {
-             player3.isHidden = false
-            playerCount += 1
-            img = player3.tag
-        }
-        else if player1.isHidden == false && player4.isHidden == true
-        {
-             player4.isHidden = false
-            playerCount += 1
-           img =  player4.tag
-        }
-        
-        //players.append(Player(peerId: id))
- */
         
     }
  
@@ -459,7 +495,7 @@ class Multiplayer: UIViewController ,MCBrowserViewControllerDelegate, MCSessionD
             print("Connected: \(peerID.displayName)")
             imgNumber = imgNumber + 1
             //players.append(Player(peerId: peerID, img: imgNumber))
-            sendData()
+            //sendData()
             //playerCount += 1
             
         case MCSessionState.connecting:
@@ -471,22 +507,35 @@ class Multiplayer: UIViewController ,MCBrowserViewControllerDelegate, MCSessionD
     }
     
     func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
-        
-        
-        
-        
-        
         print("Im in here ...")
         
+        /*
         if let receivedString = NSKeyedUnarchiver.unarchiveObject(with: data) as? String{
             //self.updateChatView(newText: receivedString, id: peerID)
             self.updatePlayers()
         }
+ */
         
         DispatchQueue.main.async(execute: {
             
             if let receivedString = NSKeyedUnarchiver.unarchiveObject(with: data) as? String{
-                self.updateAnswerLabels(answer: receivedString, id: peerID)
+                if receivedString == "0" || receivedString == "1" || receivedString == "2" || receivedString == "3"
+                {
+                
+                    self.updateAnswerLabels(answer: receivedString, id: peerID)
+                    if self.checkForAllSubmissions()
+                    {
+                        print("String rcvd: \(receivedString)")
+                        print("LOADING 1 from \(peerID)")
+                        Timer.scheduledTimer(timeInterval: 3.1, target: self, selector: #selector(self.attemptToLoadNextQuestion), userInfo: nil,repeats: false)
+                    }
+                }
+                else if receivedString == "restart"
+                {
+                    self.restartGame()
+                }
+                
+                
             }
             
             //let playerIndex = (self.getPlayerIndex(by:peerID))!
@@ -528,14 +577,16 @@ class Multiplayer: UIViewController ,MCBrowserViewControllerDelegate, MCSessionD
     {
         if gameEnded == false
         {
-            
+            /*
             if waiting3Seconds == true
             {
                 if seconds == 20
                 {
+                    print("LOADING 2")
                     attemptToLoadNextQuestion()
                 }
             }
+ */
             
             
             //Stops the timer once it hits 0
@@ -546,7 +597,11 @@ class Multiplayer: UIViewController ,MCBrowserViewControllerDelegate, MCSessionD
                 //gameTimer.invalidate()
                 Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(showCorrectAnswer), userInfo: nil,repeats: false)
                 possibleScore += 1
+                print("LOADING 3")
                 Timer.scheduledTimer(timeInterval: 3.1, target: self, selector: #selector(attemptToLoadNextQuestion), userInfo: nil,repeats: false)
+                
+                gameTimer.invalidate()
+                seconds = 20
             }
             else
             {
@@ -561,7 +616,6 @@ class Multiplayer: UIViewController ,MCBrowserViewControllerDelegate, MCSessionD
     
     @objc func showCorrectAnswer()
     {
-        seconds = 23
         //gameTimer.fire()
         
         disableButtons()
@@ -600,6 +654,232 @@ class Multiplayer: UIViewController ,MCBrowserViewControllerDelegate, MCSessionD
         gameTimer = Timer.scheduledTimer(timeInterval: 1, target: self, selector: (#selector(SinglePlayer.updateTimer)), userInfo: nil, repeats: true)
         
     }
+    
+    
+    
+    @objc func attemptToLoadNextQuestion()
+    {
+        clearButtonBorders()
+        if waiting3Seconds == true
+        {
+            enableButtons()
+            
+            waiting3Seconds = false
+        }
+        
+        if currentQuestionNumber < numberOfTotalQuestions-1
+        {
+            currentQuestionNumber = currentQuestionNumber + 1
+            gameTimer.invalidate()
+            seconds = 20
+            startTimer()
+            loadQuestion()
+            resetClicks()
+            clearPlayerPicks()
+        }
+        else
+        {
+            print("No more questions!")
+            endGame()
+        }
+    }
+    
+    func clearPlayerPicks()
+    {
+        player1Label.text = ""
+        player2Label.text = ""
+        player3Label.text = ""
+        player4Label.text = ""
+    }
+    
+    
+    func endGame()
+    {
+        gameEnded = true
+        restartButton.isHidden = false
+        print("No more questions!")
+        //timerNotificationLabel.isHidden = true
+        
+        disableButtons()
+        
+        if score > 0
+        {
+            timerNotificationLabel.text = "YOU WON! You scored \(score!)/\(possibleScore)"
+        }
+        else
+        {
+            timerNotificationLabel.text = "YOU LOST!"
+        }
+        
+    }
+    
+    
+    func loadQuestion()
+    {
+        gameTimer.fire()
+        questionNumberLabel.text = "Question \(quizGame[currentQuestionNumber].questionNumber) of \(numberOfTotalQuestions!)"
+        questionLabel.text = quizGame[currentQuestionNumber].questionQuestion
+        buttonA.setTitle(quizGame[currentQuestionNumber].questionOptionA, for: .normal)
+        buttonB.setTitle(quizGame[currentQuestionNumber].questionOptionB, for: .normal)
+        buttonC.setTitle(quizGame[currentQuestionNumber].questionOptionC, for: .normal)
+        buttonD.setTitle(quizGame[currentQuestionNumber].questionOptionD, for: .normal)
+    }
+    
+    @objc func submitSelection(_ sender: Int) {
+        
+        print(sender)
+        clearSelection()
+        let answer = String(sender)
+        player1Label.text = String(sender)
+        let dataToSend =  NSKeyedArchiver.archivedData(withRootObject: answer)
+        
+        do{
+            try players[0].playerSession.send(dataToSend, toPeers: players[0].playerSession.connectedPeers, with: .unreliable)
+        }
+        catch let err {
+            //print("Error in sending data \(err)")
+        }
+        
+        updateAnswerLabels(answer: answer, id: players[0].playerPeerId)
+        
+        
+        checkAnswer(selectedButton: sender)
+        Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(showCorrectAnswer), userInfo: nil,repeats: false)
+        //Waits 3 secounds before laoding next answer
+        
+        if checkForAllSubmissions()
+        {
+            print("LOADING 6")
+            print("Loading next question")
+            Timer.scheduledTimer(timeInterval: 3.1, target: self, selector: #selector(attemptToLoadNextQuestion), userInfo: nil,repeats: false)
+        }
+        
+        
+        //Timer.scheduledTimer(timeInterval: 3.1, target: self, selector: #selector(attemptToLoadNextQuestion), userInfo: nil,repeats: false)
+        
+    }
+    
+    func checkAnswer(selectedButton: Int)
+    {
+        let correct = quizGame[currentQuestionNumber].questionAnswer
+        var number: Int = -1
+        
+        switch correct {
+        case "A":
+            number = 0
+        case "B":
+            number = 1
+        case "C":
+            number = 2
+        case "D":
+            number = 3
+        default:
+            number = -1
+        }
+        
+        if selectedButton == number
+        {
+            score = score + 1
+            possibleScore +=  1
+            //Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(showCorrectAnswer), userInfo: nil,repeats: false)
+            //showCorrectAnswer()
+            print("Correct")
+        }
+        else
+        {
+            possibleScore +=  1
+            // Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(showCorrectAnswer), userInfo: nil,repeats: false)
+            
+            print("Wrong")
+        }
+    }
+    
+    
+    func resetClicks()
+    {
+        buttonAclicks = 0
+        buttonBclicks = 0
+        buttonCclicks = 0
+        buttonDclicks = 0
+    }
+    
+    func setButtonBorders()
+    {
+        buttonA.layer.borderWidth = 5
+        buttonA.layer.cornerRadius = 15
+        
+        buttonB.layer.borderWidth = 5
+        buttonB.layer.cornerRadius = 15
+        
+        buttonC.layer.borderWidth = 5
+        buttonC.layer.cornerRadius = 15
+        
+        buttonD.layer.borderWidth = 5
+        buttonD.layer.cornerRadius = 15
+    }
+    
+    func clearButtonBorders()
+    {
+        buttonA.layer.borderColor = UIColor.clear.cgColor
+        buttonB.layer.borderColor = UIColor.clear.cgColor
+        buttonC.layer.borderColor = UIColor.clear.cgColor
+        buttonD.layer.borderColor = UIColor.clear.cgColor
+    }
+    
+    func disableButtons()
+    {
+        buttonA.isEnabled = false
+        buttonB.isEnabled = false
+        buttonC.isEnabled = false
+        buttonD.isEnabled = false
+    }
+    
+    func enableButtons()
+    {
+        buttonA.isEnabled = true
+        buttonB.isEnabled = true
+        buttonC.isEnabled = true
+        buttonD.isEnabled = true
+    }
+    
+    func clearSelection()
+    {
+        answerASelect = false
+        answerBSelect = false
+        answerCSelect = false
+        answerDSelect = false
+    }
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    override func didReceiveMemoryWarning() {
+        super.didReceiveMemoryWarning()
+        // Dispose of any resources that can be recreated.
+    }
+    
     
     @objc func updateMotion(){
         time = 3
@@ -758,195 +1038,6 @@ class Multiplayer: UIViewController ,MCBrowserViewControllerDelegate, MCSessionD
     }
     
     
-    
-    @objc func attemptToLoadNextQuestion()
-    {
-        clearButtonBorders()
-        if waiting3Seconds == true
-        {
-            enableButtons()
-            
-            waiting3Seconds = false
-        }
-        
-        if currentQuestionNumber < numberOfTotalQuestions-1
-        {
-            currentQuestionNumber = currentQuestionNumber + 1
-            gameTimer.invalidate()
-            seconds = 20
-            startTimer()
-            loadQuestion()
-            resetClicks()
-        }
-        else
-        {
-            print("No more questions!")
-            endGame()
-        }
-    }
-    
-    
-    func endGame()
-    {
-        gameEnded = true
-        restartButton.isHidden = false
-        print("No more questions!")
-        //timerNotificationLabel.isHidden = true
-        
-        disableButtons()
-        
-        if score > 0
-        {
-            timerNotificationLabel.text = "YOU WON! You scored \(score!)/\(possibleScore)"
-        }
-        else
-        {
-            timerNotificationLabel.text = "YOU LOST!"
-        }
-        
-    }
-    
-    
-    func loadQuestion()
-    {
-        questionNumberLabel.text = "Question \(quizGame[currentQuestionNumber].questionNumber) of \(numberOfTotalQuestions!)"
-        questionLabel.text = quizGame[currentQuestionNumber].questionQuestion
-        buttonA.setTitle(quizGame[currentQuestionNumber].questionOptionA, for: .normal)
-        buttonB.setTitle(quizGame[currentQuestionNumber].questionOptionB, for: .normal)
-        buttonC.setTitle(quizGame[currentQuestionNumber].questionOptionC, for: .normal)
-        buttonD.setTitle(quizGame[currentQuestionNumber].questionOptionD, for: .normal)
-    }
-    
-    @objc func submitSelection(_ sender: Int) {
-        
-        
-        checkAnswer(selectedButton: sender)
-        Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(showCorrectAnswer), userInfo: nil,repeats: false)
-        //Waits 3 secounds before laoding next answer
-        Timer.scheduledTimer(timeInterval: 3.1, target: self, selector: #selector(attemptToLoadNextQuestion), userInfo: nil,repeats: false)
-        
-    }
-    
-    func checkAnswer(selectedButton: Int)
-    {
-        let correct = quizGame[currentQuestionNumber].questionAnswer
-        var number: Int = -1
-        
-        switch correct {
-        case "A":
-            number = 0
-        case "B":
-            number = 1
-        case "C":
-            number = 2
-        case "D":
-            number = 3
-        default:
-            number = -1
-        }
-        
-        if selectedButton == number
-        {
-            score = score + 1
-            possibleScore +=  1
-            //Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(showCorrectAnswer), userInfo: nil,repeats: false)
-            //showCorrectAnswer()
-            print("Correct")
-        }
-        else
-        {
-            possibleScore +=  1
-            // Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(showCorrectAnswer), userInfo: nil,repeats: false)
-            
-            print("Wrong")
-        }
-    }
-    
-    
-    func resetClicks()
-    {
-        buttonAclicks = 0
-        buttonBclicks = 0
-        buttonCclicks = 0
-        buttonDclicks = 0
-    }
-    
-    func setButtonBorders()
-    {
-        buttonA.layer.borderWidth = 5
-        buttonA.layer.cornerRadius = 15
-        
-        buttonB.layer.borderWidth = 5
-        buttonB.layer.cornerRadius = 15
-        
-        buttonC.layer.borderWidth = 5
-        buttonC.layer.cornerRadius = 15
-        
-        buttonD.layer.borderWidth = 5
-        buttonD.layer.cornerRadius = 15
-    }
-    
-    func clearButtonBorders()
-    {
-        buttonA.layer.borderColor = UIColor.clear.cgColor
-        buttonB.layer.borderColor = UIColor.clear.cgColor
-        buttonC.layer.borderColor = UIColor.clear.cgColor
-        buttonD.layer.borderColor = UIColor.clear.cgColor
-    }
-    
-    func disableButtons()
-    {
-        buttonA.isEnabled = false
-        buttonB.isEnabled = false
-        buttonC.isEnabled = false
-        buttonD.isEnabled = false
-    }
-    
-    func enableButtons()
-    {
-        buttonA.isEnabled = true
-        buttonB.isEnabled = true
-        buttonC.isEnabled = true
-        buttonD.isEnabled = true
-    }
-    
-    func clearSelection()
-    {
-        answerASelect = false
-        answerBSelect = false
-        answerCSelect = false
-        answerDSelect = false
-    }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
-    }
     func readJSONData(_ object: [String: AnyObject]) {
         
         
